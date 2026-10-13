@@ -12,6 +12,14 @@ Google Scholar and Zotero citation meta tags for paper posts, generated from a D
 
 == Description ==
 
+Use this plugin for a page about a single work (a paper, chapter or book). For pages that list many works, use the companion plugin Scholar Citation Meta Scanner (https://github.com/dillonma/scholar-citation-meta-scanner); the two work together.
+
+Examples:
+
+* One paper: https://dillonm.io/papers/the-urban-tech-feedback-loop/
+* One book chapter: https://dillonm.io/papers/land-for-ai/
+* With the Scanner on the same page: https://dillonm.io/papers/doing-critical-gis/
+
 Google Scholar and Zotero citation meta tags for paper posts, generated from a DOI (Crossref, DataCite, doi.org) or BibTeX, with Scholar-friendly PDF links.
 
 Full documentation: https://github.com/dillonma/scholar-citation-meta

@@ -1,11 +1,37 @@
 # Scholar Citation Meta
 
-Google Scholar and Zotero citation meta tags for paper posts, generated from a DOI (Crossref, DataCite, doi.org) or BibTeX, with Scholar-friendly PDF links.
+Google Scholar and Zotero citation tags for a page about a single paper, chapter or book, generated from a DOI (Crossref, DataCite, doi.org) or BibTeX, with Scholar-friendly PDF links.
 
 [![Latest release](https://img.shields.io/github/v/release/dillonma/scholar-citation-meta)](https://github.com/dillonma/scholar-citation-meta/releases/latest) ![WordPress 5.9+](https://img.shields.io/badge/WordPress-5.9%2B-blue) ![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License GPL-2.0-or-later](https://img.shields.io/badge/license-GPL--2.0--or--later-green)
 
 ## What it does
-For each paper post, enter a DOI (and optionally a PDF URL or BibTeX). It then:
+**Scholar Citation Meta is for a page about a single work.** Give a post a DOI, and the plugin adds the citation tags Google Scholar and Zotero need to recognize the page as that paper, chapter or book. It also gives the PDF a link Google Scholar will accept.
+
+For pages that **list many works**, such as a publications page, use the companion plugin **[Scholar Citation Meta Scanner](https://github.com/dillonma/scholar-citation-meta-scanner)**. It works on its own or together with this one.
+
+| | [Scholar Citation Meta](https://github.com/dillonma/scholar-citation-meta) | [Scholar Citation Meta Scanner](https://github.com/dillonma/scholar-citation-meta-scanner) |
+|---|---|---|
+| **Use it for** | A page about **one** work: a paper, chapter or book | A page that **lists many** works: a publications list, syllabus, reading list or bibliography |
+| **What it adds** | Highwire `citation_*` meta tags for that one work | Hidden COinS tags for every DOI found on the page |
+| **Google Scholar** | Tells Scholar the page is that work and where your PDF is | Not used by Scholar |
+| **Zotero browser button** | Saves the one work | Shows a folder icon with a pick-list of every work on the page |
+| **Where the details come from** | The DOI you enter (Crossref, DataCite, doi.org), plus optional BibTeX | Each DOI on the page, looked up the same way |
+| **Turned on** | Per post, by entering a DOI | Per post or page, with a checkbox (off by default) |
+
+### Examples
+- **One paper (Meta):** [The urban-tech feedback loop](https://dillonm.io/papers/the-urban-tech-feedback-loop/), a journal article in *Digital Geography & Society*. Google Scholar has what it needs to index the page as that article, and Zotero saves it as a journal article.
+- **One book chapter (Meta):** [Land for AI](https://dillonm.io/papers/land-for-ai/), a chapter in *The Inner World of Artificial Intelligence* (CRC Press). Zotero saves it as a book section with the book title and publisher.
+- **A list of works (Scanner):** [Papers + Writings](https://dillonm.io/papers/), a full publications list. Zotero offers every listed work with a DOI as a pick-list.
+- **Both together:** [Doing Critical GIS](https://dillonm.io/papers/doing-critical-gis/), a special-issue introduction with the issue's other articles listed below it. Meta describes the introduction itself for Google Scholar. The Scanner gives Zotero a pick-list with the introduction first, followed by the other articles.
+
+### Using both
+The two plugins are built to run side by side. On a page with both:
+- Google Scholar still reads Meta's tags, so the page is still described as its own work.
+- Zotero prefers the Scanner's list, and the page's own work is put first in it (you can turn this off per page).
+- If a DOI on a list page belongs to one of your own Meta posts, the Scanner uses that post's details, including any BibTeX fixes such as missing page numbers.
+
+### Features
+For each paper post, enter a DOI (and optionally a PDF URL or BibTeX). The plugin then:
 
 - Fetches title, authors, date, journal, volume, issue, pages, ISSN, publisher and DOI when you save the post. It tries Crossref first, then DataCite's API, then `doi.org` for any other registration agency. The box shows which one supplied the data and flags missing fields.
 - Outputs Highwire `citation_*` meta tags in the page `<head>`. Google Scholar and the Zotero Connector both read these.
