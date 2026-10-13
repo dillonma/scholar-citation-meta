@@ -67,6 +67,7 @@ Versions before 1.7.0 don't have the updater, so upload 1.7.0 once by hand.
 3. The **Release** workflow checks that the tag matches both version numbers, builds `scholar-citation-meta-<version>.zip`, and attaches it to the release. Sites running the plugin will then see the update.
 
 ## Changelog
+- **1.7.1**: Update checks fall back to github.com when GitHub's API is rate-limited (common on shared hosting).
 - **1.7.0**: Updates from GitHub Releases: new versions appear on the Plugins screen like any other plugin.
 - **1.6.0**: The DOI field accepts publisher URLs (e.g. Taylor & Francis chapter links), drops title slugs after the DOI, and stores the DOI that actually resolved.
 - **1.5.0**: Checks the DataCite API directly when Crossref has no record, before falling back to doi.org.

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Scholar Citation Meta
  * Description:       Generates Google Scholar / Zotero (Highwire Press) citation meta tags for paper posts from a DOI (via Crossref) or pasted BibTeX. Also serves the PDF from an alias under the post's URL and offers BibTeX/RIS downloads. Shortcodes: [scholar_pdf], [scholar_pdf text="..."], [scholar_pdf icon="0"], [scholar_pdf class="..."], [scholar_pdf url="1"], [scholar_cite].
- * Version:           1.7.0
+ * Version:           1.7.1
  * Requires at least: 5.9
  * Requires PHP:      7.4
  * Author:            Dillon Mahmoudi
@@ -979,6 +979,21 @@ function scm_latest_release( $force = false ) {
 				);
 				break;
 			}
+		}
+	}
+	if ( ! $rel ) {
+		// API unavailable or rate-limited (60 requests/hour per server IP): follow the
+		// github.com/…/releases/latest redirect instead and build the asset URL from the tag.
+		$h   = wp_remote_head( 'https://github.com/' . SCM_GITHUB_REPO . '/releases/latest', array( 'timeout' => 10, 'redirection' => 0 ) );
+		$loc = is_wp_error( $h ) ? '' : (string) wp_remote_retrieve_header( $h, 'location' );
+		if ( preg_match( '~/releases/tag/(v?([\d.]+))$~', $loc, $m ) ) {
+			$rel = array(
+				'version' => $m[2],
+				'package' => 'https://github.com/' . SCM_GITHUB_REPO . '/releases/download/' . $m[1] . '/scholar-citation-meta-' . $m[2] . '.zip',
+				'url'     => $loc,
+				'notes'   => 'See ' . $loc,
+				'date'    => '',
+			);
 		}
 	}
 	set_site_transient( $key, $rel, $rel ? 6 * HOUR_IN_SECONDS : HOUR_IN_SECONDS );
