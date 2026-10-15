@@ -66,6 +66,31 @@ Paste a BibTeX entry instead. Any field in the BibTeX overrides the Crossref val
 | `[scholar_pdf class="button"]` | Adds your own CSS class (default `scholar-pdf`) |
 | `[scholar_pdf url="1"]` | Just the bare URL |
 | `[scholar_cite]` | "Cite: BibTeX · RIS" download links |
+| `[scholar_pdf lang="fr"]` | Link to the French translation's PDF, using that row's link text |
+| `[scholar_title]` / `[scholar_title lang="fr"]` | The original title / the translated title |
+| `[scholar_translations]` | A list of every translation with its title and link (`titles="0"` for links only) |
+| `[scholar_pdf url="https://…" text="en français" lang="fr"]` | A one-off link that isn't stored in the box |
+
+## Translations
+To offer a translated version of a work, fill in a row in the **Translations** table in the Scholar citation metadata box:
+
+| Field | Example | Notes |
+|---|---|---|
+| Language | `fr` | A language code: `fr`, `es`, `de`, `pt-BR`, … |
+| Translated title | La machine à rente foncière | Shown by `[scholar_title lang="fr"]` and `[scholar_translations]`, and as the link's tooltip |
+| PDF URL | `https://dillonm.io/articles/grm_fr.pdf` | Gets an alias under the post's URL, like the main PDF |
+| Link text | en français | Text of the `[scholar_pdf lang="fr"]` link. Defaults to "PDF (français)" |
+| Translated page | `https://dillonm.io/fr/…/` | Optional. A separate page for the translation. Announced to search engines as a `hreflang` alternate |
+
+Click **Add translation** for more languages. To remove a row, click ✕ and update the post.
+
+Then put the links on the page:
+
+    [scholar_pdf] · [scholar_pdf lang="fr" icon="0"]
+
+which shows **Download PDF** · **en français**. Or list every translation with `[scholar_translations]`.
+
+Links are marked with the right language (`lang` and `hreflang`), which helps screen readers and search engines. The Google Scholar tags still point only to the original PDF, because Scholar expects one main PDF per page. Scholar may find a translated PDF through its alias and list it as another version. To have a translation indexed as a separate work, give it its own post with its own Scholar Citation Meta details and put that post's address in **Translated page**.
 
 ## If the alias URL doesn't load
 The plugin box shows whether the alias rule is in `.htaccess`.
@@ -93,6 +118,7 @@ Versions before 1.7.0 don't have the updater, so upload 1.7.0 once by hand.
 3. The **Release** workflow checks that the tag matches both version numbers, builds `scholar-citation-meta-<version>.zip`, and attaches it to the release. Sites running the plugin will then see the update.
 
 ## Changelog
+- **1.8.0**: Translations: a Translations table in the editor box (language, translated title, PDF, link text, optional translated page), new `[scholar_pdf lang="fr"]`, `[scholar_title]` and `[scholar_translations]` shortcodes, PDF aliases for translated PDFs, and `hreflang` alternate links for translated pages. `[scholar_pdf]` also accepts `label`/`link` and a one-off `url="https://…"`.
 - **1.7.1**: Update checks fall back to github.com when GitHub's API is rate-limited (common on shared hosting).
 - **1.7.0**: Updates from GitHub Releases: new versions appear on the Plugins screen like any other plugin.
 - **1.6.0**: The DOI field accepts publisher URLs (e.g. Taylor & Francis chapter links), drops title slugs after the DOI, and stores the DOI that actually resolved.

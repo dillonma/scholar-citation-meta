@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       Scholar Citation Meta
- * Description:       Generates Google Scholar / Zotero (Highwire Press) citation meta tags for paper posts from a DOI (via Crossref) or pasted BibTeX. Also serves the PDF from an alias under the post's URL and offers BibTeX/RIS downloads. Shortcodes: [scholar_pdf], [scholar_pdf text="..."], [scholar_pdf icon="0"], [scholar_pdf class="..."], [scholar_pdf url="1"], [scholar_cite].
- * Version:           1.7.1
+ * Description:       Generates Google Scholar / Zotero (Highwire Press) citation meta tags for a page about a single work, from a DOI (Crossref, DataCite, doi.org) or pasted BibTeX. Also serves the PDF from an alias under the post's URL and offers BibTeX/RIS downloads. Shortcodes: [scholar_pdf], [scholar_pdf lang="fr"], [scholar_title], [scholar_translations], [scholar_cite].
+ * Version:           1.8.0
  * Requires at least: 5.9
  * Requires PHP:      7.4
  * Author:            Dillon Mahmoudi
@@ -73,6 +73,7 @@ function scm_render_box( $post ) {
 		<textarea id="scm_bibtex" name="scm_bibtex" rows="6" style="width:100%;font-family:monospace"><?php echo esc_textarea( $bib ); ?></textarea>
 		<span class="description">Use this for items without a DOI, or to override any Crossref field. BibTeX values win.</span>
 	</p>
+	<?php scm_render_translations( $post->ID ); ?>
 	<p><label><input type="checkbox" name="scm_refresh" value="1"> Re-fetch from Crossref on save</label></p>
 	<?php
 	if ( $error ) {
@@ -137,6 +138,12 @@ function scm_render_box( $post ) {
 				<tr><td><code>[scholar_pdf class="button"]</code></td><td>Adds your own CSS class (default <code>scholar-pdf</code>)</td></tr>
 				<tr><td><code>[scholar_pdf url="1"]</code></td><td>Just the bare URL, to use inside your own link or button</td></tr>
 				<tr><td><code>[scholar_cite]</code></td><td>"Cite: BibTeX · RIS" download links</td></tr>
+				<tr><th colspan="2">Translations</th></tr>
+				<tr><td><code>[scholar_pdf lang="fr"]</code></td><td>Link to the French PDF, using that row's link text (e.g. <strong>en français</strong>)</td></tr>
+				<tr><td><code>[scholar_pdf] · [scholar_pdf lang="fr" icon="0"]</code></td><td><strong>Download PDF</strong> · <strong>en français</strong></td></tr>
+				<tr><td><code>[scholar_title lang="fr"]</code></td><td>The translated title (<code>[scholar_title]</code> = original title)</td></tr>
+				<tr><td><code>[scholar_translations]</code></td><td>A list of every translation: title and PDF link (and page link, if set). Add <code>titles="0"</code> to show links only</td></tr>
+				<tr><td><code>[scholar_pdf url="https://…" text="en français" lang="fr"]</code></td><td>A one-off link that isn't stored in the box</td></tr>
 			</tbody>
 		</table>
 		<p class="description">Options can be combined, e.g. <code>[scholar_pdf text="PDF" icon="0"]</code>.</p>
@@ -163,6 +170,7 @@ add_action( 'save_post', function ( $post_id ) {
 	update_post_meta( $post_id, '_scm_doi', $doi );
 	update_post_meta( $post_id, '_scm_pdf', $pdf );
 	update_post_meta( $post_id, '_scm_bibtex', wp_slash( $bib ) );
+	scm_save_translations( $post_id, wp_unslash( $_POST['scm_tr'] ?? array() ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sanitized per field
 
 	if ( ! $doi ) {
 		delete_post_meta( $post_id, '_scm_crossref' );
@@ -238,7 +246,7 @@ function scm_clean_pages( $raw, $volume = '', $issue = '' ) {
 }
 
 function scm_user_agent() {
-	return 'ScholarCitationMeta/1.7 (' . home_url() . '; mailto:' . get_option( 'admin_email' ) . ')';
+	return 'ScholarCitationMeta/1.8 (' . home_url() . '; mailto:' . get_option( 'admin_email' ) . ')';
 }
 
 /**
@@ -603,7 +611,12 @@ function scm_relative_to( $url, $base_url ) {
 }
 
 function scm_pdf_url( $post_id ) {
-	$pdf = (string) get_post_meta( $post_id, '_scm_pdf', true );
+	return scm_alias_url( $post_id, (string) get_post_meta( $post_id, '_scm_pdf', true ) );
+}
+
+/** The Scholar-friendly alias for any PDF URL on this post (main PDF or a translation), or the URL unchanged. */
+function scm_alias_url( $post_id, $pdf ) {
+	$pdf = (string) $pdf;
 	if ( ! $pdf || ! SCM_PDF_ALIAS ) {
 		return $pdf;
 	}
@@ -915,24 +928,107 @@ add_action( 'template_redirect', function () {
 
 /**
  * [scholar_pdf] outputs the PDF link (alias URL) for the current post.
- * Options: text="Download PDF" icon="1" (Font Awesome PDF icon) class="..."
- * [scholar_pdf url="1"] outputs only the bare URL.
+ * Options: text="Download PDF" (alias: label) icon="1" class="..." url="1" (bare URL only)
+ * Translations: lang="fr" uses the French row from the Translations table.
+ * One-off link: url="https://…" (alias: link) with text/label and optional lang.
  */
 add_shortcode( 'scholar_pdf', function ( $atts ) {
-	$a  = shortcode_atts( array( 'text' => 'Download PDF', 'icon' => '1', 'class' => 'scholar-pdf', 'url' => '0' ), $atts, 'scholar_pdf' );
+	$atts = (array) $atts;
+	if ( isset( $atts['label'] ) && ! isset( $atts['text'] ) ) {
+		$atts['text'] = $atts['label'];
+	}
+	if ( isset( $atts['link'] ) && ! isset( $atts['url'] ) ) {
+		$atts['url'] = $atts['link'];
+	}
+	$a  = shortcode_atts( array( 'text' => '', 'icon' => '1', 'class' => 'scholar-pdf', 'url' => '0', 'lang' => '' ), $atts, 'scholar_pdf' );
 	$id = get_the_ID();
 	if ( ! $id ) {
 		return '';
 	}
-	$link = scm_pdf_url( $id );
+	$lang  = scm_clean_lang( $a['lang'] );
+	$title = '';
+	$bare  = '1' === (string) $a['url'];
+	$text  = (string) $a['text'];
+
+	if ( preg_match( '#^https?://#i', (string) $a['url'] ) ) {          // one-off link
+		$link = scm_alias_url( $id, esc_url_raw( $a['url'] ) );
+	} elseif ( $lang ) {                                                // stored translation
+		$tr = scm_get_translation( $id, $lang );
+		if ( ! $tr ) {
+			return '';
+		}
+		$link  = $tr['pdf'] ? scm_alias_url( $id, $tr['pdf'] ) : $tr['page'];
+		$lang  = $tr['lang'];
+		$title = $tr['title'];
+		if ( ! $tr['pdf'] ) {
+			$a['icon'] = '0'; // links to a translated page, not a PDF
+		}
+		$text = '' !== $text ? $text : ( $tr['text'] ?: ( $tr['pdf'] ? sprintf( 'PDF (%s)', scm_lang_name( $lang ) ) : scm_lang_name( $lang ) ) );
+	} else {                                                            // main PDF
+		$link = scm_pdf_url( $id );
+	}
 	if ( ! $link ) {
 		return '';
 	}
-	if ( '1' === (string) $a['url'] ) {
+	if ( $bare ) {
 		return esc_url( $link );
 	}
+	$text = '' !== $text ? $text : 'Download PDF';
 	$icon = '1' === (string) $a['icon'] ? '<i class="fas fa-file-pdf" aria-hidden="true"></i> ' : '';
-	return sprintf( '<a class="%s" href="%s">%s<strong>%s</strong></a>', esc_attr( $a['class'] ), esc_url( $link ), $icon, esc_html( $a['text'] ) );
+	$attr = '';
+	if ( $lang ) {
+		$attr .= sprintf( ' hreflang="%1$s" lang="%1$s"', esc_attr( $lang ) );
+	}
+	if ( $title ) {
+		$attr .= sprintf( ' title="%s"', esc_attr( $title ) );
+	}
+	return sprintf( '<a class="%s" href="%s"%s>%s<strong>%s</strong></a>', esc_attr( $a['class'] ), esc_url( $link ), $attr, $icon, esc_html( $text ) );
+} );
+
+/** [scholar_title] = original title; [scholar_title lang="fr"] = translated title. */
+add_shortcode( 'scholar_title', function ( $atts ) {
+	$a  = shortcode_atts( array( 'lang' => '' ), $atts, 'scholar_title' );
+	$id = get_the_ID();
+	if ( ! $id ) {
+		return '';
+	}
+	$lang = scm_clean_lang( $a['lang'] );
+	if ( $lang ) {
+		$tr = scm_get_translation( $id, $lang );
+		return ( $tr && $tr['title'] ) ? sprintf( '<span class="scholar-title" lang="%s">%s</span>', esc_attr( $tr['lang'] ), esc_html( $tr['title'] ) ) : '';
+	}
+	$d     = scm_get_data( $id );
+	$title = ( $d && $d['title'] ) ? $d['title'] : get_the_title( $id );
+	return '<span class="scholar-title">' . esc_html( $title ) . '</span>';
+} );
+
+/** [scholar_translations] lists every translation. Options: titles="0" icon="1" class="…" */
+add_shortcode( 'scholar_translations', function ( $atts ) {
+	$a  = shortcode_atts( array( 'titles' => '1', 'icon' => '1', 'class' => 'scholar-translations' ), $atts, 'scholar_translations' );
+	$id = get_the_ID();
+	$rows = $id ? scm_get_translations( $id ) : array();
+	if ( ! $rows ) {
+		return '';
+	}
+	$icon  = '1' === (string) $a['icon'] ? '<i class="fas fa-file-pdf" aria-hidden="true"></i> ' : '';
+	$items = array();
+	foreach ( $rows as $tr ) {
+		$l     = esc_attr( $tr['lang'] );
+		$parts = array();
+		if ( '1' === (string) $a['titles'] && $tr['title'] ) {
+			$parts[] = sprintf( '<cite lang="%s">%s</cite>', $l, esc_html( $tr['title'] ) );
+		}
+		$links = array();
+		if ( $tr['pdf'] ) {
+			$links[] = sprintf( '<a href="%1$s" hreflang="%2$s" lang="%2$s">%3$s<strong>%4$s</strong></a>', esc_url( scm_alias_url( $id, $tr['pdf'] ) ), $l, $icon, esc_html( $tr['text'] ?: sprintf( 'PDF (%s)', scm_lang_name( $tr['lang'] ) ) ) );
+		}
+		if ( $tr['page'] ) {
+			$links[] = sprintf( '<a href="%1$s" hreflang="%2$s" lang="%2$s">%3$s</a>', esc_url( $tr['page'] ), $l, esc_html( scm_lang_name( $tr['lang'] ) ) );
+		}
+		$parts[] = implode( ' · ', $links );
+		$items[] = sprintf( '<li lang="%s">%s</li>', $l, implode( ' — ', array_filter( $parts ) ) );
+	}
+	return sprintf( '<ul class="%s">%s</ul>', esc_attr( $a['class'] ), implode( '', $items ) );
 } );
 
 add_shortcode( 'scholar_cite', function () {
@@ -947,6 +1043,132 @@ add_shortcode( 'scholar_cite', function () {
 		esc_url( add_query_arg( 'scm_cite', 'ris', $p ) )
 	);
 } );
+
+/* -------------------------------------------------------------------------
+ * Translations: [lang, title, pdf, text, page] rows stored per post
+ * ---------------------------------------------------------------------- */
+
+/** BCP 47-ish language tag ("fr", "pt-BR", "zh-Hant"), or ''. */
+function scm_clean_lang( $lang ) {
+	$lang = trim( str_replace( '_', '-', (string) $lang ) );
+	return preg_match( '/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/', $lang ) ? $lang : '';
+}
+
+/** Language name in that language ("fr" -> "français"), for default link text. */
+function scm_lang_name( $lang ) {
+	if ( function_exists( 'locale_get_display_language' ) ) {
+		$n = locale_get_display_language( $lang, $lang );
+		if ( $n && strtolower( $n ) !== strtolower( $lang ) ) {
+			return $n;
+		}
+	}
+	$names = array(
+		'ar' => 'العربية', 'de' => 'Deutsch', 'en' => 'English', 'es' => 'español', 'fa' => 'فارسی', 'fr' => 'français',
+		'he' => 'עברית', 'hi' => 'हिन्दी', 'it' => 'italiano', 'ja' => '日本語', 'ko' => '한국어', 'nl' => 'Nederlands',
+		'pl' => 'polski', 'pt' => 'português', 'ru' => 'русский', 'sv' => 'svenska', 'tr' => 'Türkçe', 'uk' => 'українська',
+		'zh' => '中文', 'cs' => 'čeština', 'el' => 'Ελληνικά', 'id' => 'Bahasa Indonesia', 'vi' => 'Tiếng Việt',
+	);
+	return $names[ strtolower( strtok( $lang, '-' ) ) ] ?? $lang;
+}
+
+function scm_get_translations( $post_id ) {
+	$rows = get_post_meta( $post_id, '_scm_translations', true );
+	return is_array( $rows ) ? array_values( $rows ) : array();
+}
+
+/** Row for a language: exact tag first ("pt-BR"), then same base language ("pt"). */
+function scm_get_translation( $post_id, $lang ) {
+	$rows = scm_get_translations( $post_id );
+	foreach ( $rows as $r ) {
+		if ( 0 === strcasecmp( $r['lang'], $lang ) ) {
+			return $r;
+		}
+	}
+	$base = strtolower( strtok( $lang, '-' ) );
+	foreach ( $rows as $r ) {
+		if ( strtolower( strtok( $r['lang'], '-' ) ) === $base ) {
+			return $r;
+		}
+	}
+	return null;
+}
+
+function scm_save_translations( $post_id, $input ) {
+	$rows = array();
+	foreach ( (array) $input as $r ) {
+		if ( ! is_array( $r ) ) {
+			continue;
+		}
+		$row = array(
+			'lang'  => scm_clean_lang( $r['lang'] ?? '' ),
+			'title' => sanitize_text_field( $r['title'] ?? '' ),
+			'pdf'   => esc_url_raw( trim( (string) ( $r['pdf'] ?? '' ) ) ),
+			'text'  => sanitize_text_field( $r['text'] ?? '' ),
+			'page'  => esc_url_raw( trim( (string) ( $r['page'] ?? '' ) ) ),
+		);
+		if ( $row['lang'] && ( $row['pdf'] || $row['page'] || $row['title'] ) ) {
+			$rows[] = $row;
+		}
+	}
+	if ( $rows ) {
+		update_post_meta( $post_id, '_scm_translations', wp_slash( $rows ) );
+	} else {
+		delete_post_meta( $post_id, '_scm_translations' );
+	}
+}
+
+function scm_render_translations( $post_id ) {
+	$rows   = scm_get_translations( $post_id );
+	$rows[] = array(); // one blank row to add a new translation
+	$cell   = 'style="width:100%"';
+	?>
+	<div class="scm-translations" style="margin:12px 0">
+		<p style="margin-bottom:4px"><strong>Translations (optional)</strong></p>
+		<table class="widefat striped" id="scm-tr-table">
+			<thead><tr>
+				<th style="width:9%">Language</th><th style="width:27%">Translated title</th><th style="width:27%">PDF URL</th>
+				<th style="width:14%">Link text</th><th style="width:20%">Translated page (optional)</th><th style="width:3%"></th>
+			</tr></thead>
+			<tbody>
+			<?php foreach ( $rows as $i => $r ) : ?>
+				<tr>
+					<td><input type="text" name="scm_tr[<?php echo (int) $i; ?>][lang]" value="<?php echo esc_attr( $r['lang'] ?? '' ); ?>" placeholder="fr" <?php echo $cell; // phpcs:ignore ?>></td>
+					<td><input type="text" name="scm_tr[<?php echo (int) $i; ?>][title]" value="<?php echo esc_attr( $r['title'] ?? '' ); ?>" placeholder="Le titre traduit" <?php echo $cell; // phpcs:ignore ?>></td>
+					<td><input type="url" name="scm_tr[<?php echo (int) $i; ?>][pdf]" value="<?php echo esc_attr( $r['pdf'] ?? '' ); ?>" placeholder="https://…/paper_fr.pdf" <?php echo $cell; // phpcs:ignore ?>></td>
+					<td><input type="text" name="scm_tr[<?php echo (int) $i; ?>][text]" value="<?php echo esc_attr( $r['text'] ?? '' ); ?>" placeholder="en français" <?php echo $cell; // phpcs:ignore ?>></td>
+					<td><input type="url" name="scm_tr[<?php echo (int) $i; ?>][page]" value="<?php echo esc_attr( $r['page'] ?? '' ); ?>" placeholder="https://…" <?php echo $cell; // phpcs:ignore ?>></td>
+					<td><button type="button" class="button-link scm-tr-del" aria-label="Remove row" onclick="this.closest('tr').querySelectorAll('input').forEach(function(f){f.value='';});this.closest('tr').style.opacity=.4;">✕</button></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+		<p style="margin-top:6px">
+			<button type="button" class="button" onclick="(function(){var b=document.querySelector('#scm-tr-table tbody'),r=b.rows[b.rows.length-1].cloneNode(true),n=b.rows.length;r.style.opacity=1;r.querySelectorAll('input').forEach(function(f){f.value='';f.name=f.name.replace(/\[\d+\]/,'['+n+']');});b.appendChild(r);})();">Add translation</button>
+			<span class="description">Language is a code like <code>fr</code>, <code>es</code> or <code>pt-BR</code>. PDFs in /<?php echo esc_html( SCM_PDF_DIR ); ?>/ or the Media Library get an alias under this post's URL, like the main PDF. Use <code>[scholar_pdf lang="fr"]</code>, <code>[scholar_title lang="fr"]</code> or <code>[scholar_translations]</code> on the page.</span>
+		</p>
+		<?php
+		foreach ( scm_get_translations( $post_id ) as $tr ) {
+			if ( $tr['pdf'] ) {
+				$alias = scm_alias_url( $post_id, $tr['pdf'] );
+				printf( '<p style="margin:2px 0;font-size:12px"><code>%s</code> PDF link: <a href="%s" target="_blank" rel="noopener">%s</a>%s</p>', esc_html( $tr['lang'] ), esc_url( $alias ), esc_html( $alias ), $alias === $tr['pdf'] ? ' <span style="color:#996800">(no alias: not directly in /' . esc_html( SCM_PDF_DIR ) . '/ or /uploads/YYYY/MM/)</span>' : '' );
+			}
+		}
+		?>
+	</div>
+	<?php
+}
+
+// Translated pages (not PDFs) are announced as language alternates in <head>.
+add_action( 'wp_head', function () {
+	if ( ! is_singular( scm_post_types() ) ) {
+		return;
+	}
+	foreach ( scm_get_translations( get_queried_object_id() ) as $tr ) {
+		if ( $tr['page'] ) {
+			printf( '<link rel="alternate" hreflang="%s" href="%s">' . "\n", esc_attr( $tr['lang'] ), esc_url( $tr['page'] ) );
+		}
+	}
+}, 2 );
 
 /* -------------------------------------------------------------------------
  * Updates from GitHub Releases (uses the "Update URI" header, WordPress 5.8+)

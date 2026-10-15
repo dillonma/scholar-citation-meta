@@ -4,7 +4,7 @@ Tags: google scholar, citation, doi, zotero, highwire
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.7.1
+Stable tag: 1.8.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -33,6 +33,9 @@ Full documentation: https://github.com/dillonma/scholar-citation-meta
 Later versions update from GitHub Releases through the normal WordPress Updates screen.
 
 == Changelog ==
+
+= 1.8.0 =
+* Translations: a Translations table in the editor box (language, translated title, PDF, link text, optional translated page), new [scholar_pdf lang="fr"], [scholar_title] and [scholar_translations] shortcodes, PDF aliases for translated PDFs, and hreflang alternate links for translated pages. [scholar_pdf] also accepts label/link and a one-off url="https://…".
 
 = 1.7.1 =
 * Update checks fall back to github.com when GitHub's API is rate-limited (common on shared hosting).
