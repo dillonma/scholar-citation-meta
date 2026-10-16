@@ -66,8 +66,8 @@ Paste a BibTeX entry instead. Any field in the BibTeX overrides the Crossref val
 | `[scholar_pdf class="button"]` | Adds your own CSS class (default `scholar-pdf`) |
 | `[scholar_pdf url="1"]` | Just the bare URL |
 | `[scholar_cite]` | "Cite: BibTeX · RIS" download links |
-| `[scholar_pdf lang="fr"]` | Link to the French translation's PDF, using that row's link text |
-| `[scholar_title]` / `[scholar_title lang="fr"]` | The original title / the translated title |
+| `[scholar_pdf lang="fr"]` | PDF icon + bold link to the French PDF, using that row's link text (e.g. **en français**). Hovering shows the translated title |
+| `[scholar_title]` / `[scholar_title lang="fr"]` | The original / translated title as plain text: no icon, link or bold, styled like the surrounding text. Shows nothing if there's no such translation |
 | `[scholar_translations]` | A list of every translation with its title and link (`titles="0"` for links only) |
 | `[scholar_pdf url="https://…" text="en français" lang="fr"]` | A one-off link that isn't stored in the box |
 
@@ -89,6 +89,21 @@ Then put the links on the page:
     [scholar_pdf] · [scholar_pdf lang="fr" icon="0"]
 
 which shows **Download PDF** · **en français**. Or list every translation with `[scholar_translations]`.
+
+### What each shortcode shows
+With the example row above:
+
+| You type | The page shows |
+|---|---|
+| `[scholar_pdf]` | (PDF icon) **Download PDF**, linking to the original PDF |
+| `[scholar_pdf lang="fr"]` | (PDF icon) **en français**, linking to the French PDF. Hovering shows "La machine à rente foncière" |
+| `[scholar_pdf lang="fr" icon="0"]` | **en français**, without the icon |
+| `Also available in French: [scholar_title lang="fr"]` | Also available in French: La machine à rente foncière |
+| `[scholar_title lang="fr"] — [scholar_pdf lang="fr"]` | La machine à rente foncière — (PDF icon) **en français** |
+| `[scholar_translations]` | A bulleted list with one line per language: the title, then its link, e.g. *La machine à rente foncière* — (PDF icon) **en français** |
+| `[scholar_translations titles="0"]` | The same list with links only |
+
+`[scholar_title]` is wrapped in `<span class="scholar-title" lang="fr">`, so screen readers pronounce it in the right language and you can style it with CSS. In `[scholar_translations]`, titles are in `<cite>` (usually italic) and the list has the class `scholar-translations`.
 
 Links are marked with the right language (`lang` and `hreflang`), which helps screen readers and search engines. The Google Scholar tags still point only to the original PDF, because Scholar expects one main PDF per page. Scholar may find a translated PDF through its alias and list it as another version. To have a translation indexed as a separate work, give it its own post with its own Scholar Citation Meta details and put that post's address in **Translated page**.
 
